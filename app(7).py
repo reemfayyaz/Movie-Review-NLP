@@ -146,7 +146,7 @@ st.subheader(
 )
 
 st.caption(
-    "Created by: Alain Pierre Ombanglil"
+    "Created by: REEM FAYYAZ"
 )
 
 st.write(
@@ -162,7 +162,7 @@ st.divider()
 # ---------------------------------------------------------
 if not model_ready:
 
-    st.error(
+    st.error(    
         "The application could not load the model files."
     )
 
