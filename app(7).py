@@ -1,168 +1,184 @@
 import streamlit as st
 import joblib
+import pandas as pd
+from pathlib import Path
+
 
 # ---------------------------------------------------------
-# Page configuration
+# PAGE CONFIGURATION
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="Text Classification App",
+    page_title="AI Text Classification",
     page_icon="🤖",
-    layout="centered",
-    initial_sidebar_state="collapsed",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# ---------------------------------------------------------
-# App styling
-# ---------------------------------------------------------
-st.markdown(
-    """
-    <style>
-        .block-container {
-            max-width: 850px;
-            padding-top: 2rem;
-            padding-bottom: 2rem;
-        }
-
-        .app-header {
-            text-align: center;
-            padding: 1.8rem 1rem;
-            border-radius: 18px;
-            background: linear-gradient(135deg, #4f46e5, #7c3aed);
-            color: white;
-            margin-bottom: 1.8rem;
-        }
-
-        .app-header h1 {
-            margin-bottom: 0.4rem;
-        }
-
-        .app-header p {
-            margin: 0;
-            opacity: 0.9;
-            font-size: 1rem;
-        }
-
-        div.stButton > button {
-            width: 100%;
-            border-radius: 10px;
-            font-weight: 600;
-            padding: 0.65rem;
-        }
-
-        .result-box {
-            padding: 1rem;
-            border-radius: 12px;
-            border: 1px solid rgba(128, 128, 128, 0.25);
-            margin-top: 1rem;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
 
 # ---------------------------------------------------------
-# Model loading
+# FILE PATHS
+# ---------------------------------------------------------
+BASE_DIR = Path(__file__).resolve().parent
+
+MODEL_PATH = BASE_DIR / "model.pkl"
+VECTORIZER_PATH = BASE_DIR / "vectorizer.pkl"
+
+
+# ---------------------------------------------------------
+# LOAD MODEL AND VECTORIZER
 # ---------------------------------------------------------
 @st.cache_resource
-def load_resources():
-    """Load the trained vectorizer and classification model."""
-    vectorizer = joblib.load("vectorizer.pkl")
-    model = joblib.load("model.pkl")
+def load_model():
+
+    if not MODEL_PATH.exists():
+        raise FileNotFoundError(
+            "model.pkl was not found."
+        )
+
+    if not VECTORIZER_PATH.exists():
+        raise FileNotFoundError(
+            "vectorizer.pkl was not found."
+        )
+
+    vectorizer = joblib.load(VECTORIZER_PATH)
+    model = joblib.load(MODEL_PATH)
+
     return vectorizer, model
 
 
 try:
-    vectorizer, model = load_resources()
-except FileNotFoundError as error:
-    st.error(
-        "Required model files were not found. "
-        "Make sure `vectorizer.pkl` and `model.pkl` are in the same folder as `app.py`."
-    )
-    st.exception(error)
-    st.stop()
+    vectorizer, model = load_model()
+    model_ready = True
+
 except Exception as error:
-    st.error("The model could not be loaded.")
-    st.exception(error)
-    st.stop()
+    model_ready = False
+    load_error = str(error)
+
 
 # ---------------------------------------------------------
-# Header
+# SESSION STATE
 # ---------------------------------------------------------
-st.markdown(
-    """
-    <div class="app-header">
-        <h1>🤖 Text Classification</h1>
-        <p>Enter text below and let the trained machine-learning model classify it.</p>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+if "prediction" not in st.session_state:
+    st.session_state.prediction = None
 
-# ---------------------------------------------------------
-# User input
-# ---------------------------------------------------------
-with st.form("prediction_form"):
-    text = st.text_area(
-        "Enter text",
-        placeholder="Type or paste the text you want to classify...",
-        height=180,
-        help="Enter the text that you want the model to analyze.",
-    )
+if "probabilities" not in st.session_state:
+    st.session_state.probabilities = None
 
-    predict_button = st.form_submit_button("🔍 Predict")
+if "input_text" not in st.session_state:
+    st.session_state.input_text = ""
+
 
 # ---------------------------------------------------------
-# Prediction
+# CLEAR FUNCTION
 # ---------------------------------------------------------
-if predict_button:
-    cleaned_text = text.strip()
+def clear_text():
 
-    if not cleaned_text:
-        st.warning("Please enter some text before making a prediction.")
-    else:
-        try:
-            transformed_text = vectorizer.transform([cleaned_text])
-            prediction = model.predict(transformed_text)[0]
+    st.session_state.input_text = ""
+    st.session_state.prediction = None
+    st.session_state.probabilities = None
 
-            st.subheader("Prediction Result")
-            st.success(f"Predicted Class: **{prediction}**")
-
-            # Display probabilities when supported by the model
-            if hasattr(model, "predict_proba") and hasattr(model, "classes_"):
-                probabilities = model.predict_proba(transformed_text)[0]
-
-                probability_data = sorted(
-                    zip(model.classes_, probabilities),
-                    key=lambda item: item[1],
-                    reverse=True,
-                )
-
-                st.subheader("Prediction Confidence")
-
-                for class_name, probability in probability_data:
-                    st.write(f"**{class_name}** — {probability:.2%}")
-                    st.progress(float(probability))
-
-        except Exception as error:
-            st.error("An error occurred while making the prediction.")
-            st.exception(error)
 
 # ---------------------------------------------------------
-# Sidebar
+# SIDEBAR
 # ---------------------------------------------------------
 with st.sidebar:
-    st.header("About")
-    st.write(
-        "This application uses a trained text vectorizer and machine-learning "
-        "classification model to predict the category of user-provided text."
+
+    st.title("🤖 AI Classifier")
+
+    st.caption(
+        "Created by: Alain Pierre Ombanglil"
     )
 
     st.divider()
 
-    st.caption("Built with Python, Streamlit, and scikit-learn.")
+    st.subheader("Model Status")
+
+    if model_ready:
+        st.success("Model loaded successfully")
+    else:
+        st.error("Model could not be loaded")
+
+    st.divider()
+
+    st.subheader("How to Use")
+
+    st.write("""
+    1. Enter or paste your text.
+
+    2. Click **Analyze Text**.
+
+    3. Review the predicted category.
+
+    4. Check the confidence score if available.
+    """)
+
+    st.divider()
+
+    if model_ready:
+
+        st.subheader("Model Information")
+
+        st.write(
+            "Model:",
+            type(model).__name__
+        )
+
+        st.write(
+            "Vectorizer:",
+            type(vectorizer).__name__
+        )
+
+        if hasattr(model, "classes_"):
+
+            st.write(
+                "Number of classes:",
+                len(model.classes_)
+            )
+
 
 # ---------------------------------------------------------
-# Footer
+# MAIN TITLE
 # ---------------------------------------------------------
+st.title("🤖 AI Text Classification")
+
+st.subheader(
+    "Machine Learning Text Classification Application"
+)
+
+st.caption(
+    "Created by: Alain Pierre Ombanglil"
+)
+
+st.write(
+    "Enter text below and the trained machine learning model "
+    "will automatically predict its category."
+)
+
 st.divider()
-st.caption("🤖 Text Classification App")
+
+
+# ---------------------------------------------------------
+# CHECK MODEL
+# ---------------------------------------------------------
+if not model_ready:
+
+    st.error(
+        "The application could not load the model files."
+    )
+
+    st.warning(
+        "Make sure model.pkl and vectorizer.pkl "
+        "are in the same folder as app.py."
+    )
+
+    with st.expander("Technical Details"):
+        st.code(load_error)
+
+    st.stop()
+
+
+# ---------------------------------------------------------
+# MAIN COLUMNS
+# ---------------------------------------------------------
+left_column, right_column = st.columns(
+ 
