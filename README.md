@@ -170,7 +170,7 @@ This project is open source and available under the [MIT License](LICENSE).
 
 ## 👤 Author
 
-**Alain Pierre Ombanglil**
+REEM FAYYAZ
 
 ## 🙏 Acknowledgments
 
