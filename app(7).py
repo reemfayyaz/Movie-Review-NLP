@@ -520,7 +520,7 @@ st.caption(
 )
 
 st.caption(
-    "Created by: Alain Pierre Ombanglil"
+    "Created by: REEM FAYYAZ"
 )
 
 st.caption(
